@@ -1,0 +1,19 @@
+# Ignorar pastas de compilação em qualquer nível
+target/
+**/target/
+faceid-api/target/
+bin/
+**/bin/
+
+# Ignorar arquivos pesados (JAR e Modelos de IA)
+*.jar
+*.pt
+**/models/*.pt
+**/face_feature.pt
+
+# Pastas de ferramentas e sistema
+.cursor/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

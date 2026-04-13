@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceID System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+        }
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #818cf8, #6366f1);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #6366f1;
+        }
+
+        .webcam-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+        }
+
+        @keyframes scan {
+            0%, 100% { top: 0; }
+            50% { top: calc(100% - 2px); }
+        }
+        .scan-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #6366f1, #818cf8, #6366f1, transparent);
+            animation: scan 2.5s ease-in-out infinite;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.6), 0 0 30px rgba(99, 102, 241, 0.3);
+            z-index: 10;
+        }
+
+        .corner-bracket {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: #6366f1;
+            z-index: 10;
+        }
+        .corner-bracket.tl { top: 8px; left: 8px; border-top: 2px solid; border-left: 2px solid; }
+        .corner-bracket.tr { top: 8px; right: 8px; border-top: 2px solid; border-right: 2px solid; }
+        .corner-bracket.bl { bottom: 8px; left: 8px; border-bottom: 2px solid; border-left: 2px solid; }
+        .corner-bracket.br { bottom: 8px; right: 8px; border-bottom: 2px solid; border-right: 2px solid; }
+
+        .tab-btn {
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active {
+            color: #818cf8;
+            border-bottom-color: #6366f1;
+        }
+
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+        .toast-enter { animation: slideIn 0.4s ease forwards; }
+        .toast-exit { animation: slideOut 0.4s ease forwards; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #818cf8;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(99,102,241,0.3); }
+            50% { box-shadow: 0 0 20px rgba(99,102,241,0.6); }
+        }
+        .capture-ready { animation: pulse-glow 2s ease-in-out infinite; }
+
+        .fade-in { animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="text-slate-200 antialiased">
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Main Layout -->
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md">
+
+            <!-- Logo / Header -->
+            <div class="text-center mb-8 fade-in">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 mb-4">
+                    <i data-lucide="scan-face" class="w-8 h-8 text-indigo-400"></i>
+                </div>
+                <h1 class="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                    FaceID System
+                </h1>
+                <p class="text-slate-400 text-sm mt-2">Biometric authentication powered by AI</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex justify-center gap-8 mb-6 fade-in">
+                <button class="tab-btn active text-sm font-semibold uppercase tracking-wider pb-2 px-1 text-slate-400"
+                        onclick="switchTab('register')" id="tabRegister">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> Register
+                    </span>
+                </button>
+                <button class="tab-btn text-sm font-semibold uppercase tracking-wider pb-2 px-1 text-slate-400"
+                        onclick="switchTab('login')" id="tabLogin">
+                    <span class="flex items-center gap-2">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> Login
+                    </span>
+                </button>
+            </div>
+
+            <!-- Card -->
+            <div class="glass-card rounded-2xl shadow-2xl p-8 fade-in">
+
+                <!-- Register Form -->
+                <form id="registerForm" class="space-y-5" onsubmit="handleRegister(event)">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Username</label>
+                        <div class="relative">
+                            <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                            <input type="text" id="regUsername" required minlength="3" maxlength="50"
+                                   class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-white placeholder-slate-500 outline-none text-sm"
+                                   placeholder="Enter your username">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Email</label>
+                        <div class="relative">
+                            <i data-lucide="mail" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                            <input type="email" id="regEmail" required
+                                   class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-white placeholder-slate-500 outline-none text-sm"
+                                   placeholder="you@example.com">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Password</label>
+                        <div class="relative">
+                            <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                            <input type="password" id="regPassword" required minlength="6"
+                                   class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-white placeholder-slate-500 outline-none text-sm"
+                                   placeholder="Min. 6 characters">
+                        </div>
+                    </div>
+
+                    <!-- Webcam Section -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Face Scan</label>
+                        <div class="webcam-container bg-slate-900/80" id="webcamWrapper">
+                            <video id="webcam" autoplay playsinline muted class="w-full aspect-video object-cover"></video>
+                            <div class="scan-line" id="scanLine"></div>
+                            <div class="corner-bracket tl"></div>
+                            <div class="corner-bracket tr"></div>
+                            <div class="corner-bracket bl"></div>
+                            <div class="corner-bracket br"></div>
+                        </div>
+                        <canvas id="captureCanvas" class="hidden"></canvas>
+
+                        <div class="flex gap-3 mt-3">
+                            <button type="button" id="btnStartCam"
+                                    class="btn-secondary flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+                                    onclick="startCamera()">
+                                <i data-lucide="camera" class="w-4 h-4"></i> Start Camera
+                            </button>
+                            <button type="button" id="btnCapture"
+                                    class="btn-primary flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-40"
+                                    onclick="captureFrame()" disabled>
+                                <i data-lucide="aperture" class="w-4 h-4"></i> Capture Face
+                            </button>
+                        </div>
+                        <p id="captureStatus" class="text-xs text-slate-500 mt-2 text-center hidden">
+                            <i data-lucide="check-circle" class="w-3 h-3 inline text-emerald-400"></i>
+                            <span class="text-emerald-400">Face captured successfully</span>
+                        </p>
+                    </div>
+
+                    <button type="submit" id="btnRegisterSubmit"
+                            class="btn-primary w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2" disabled>
+                        <span id="registerBtnText" class="flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i> Create Account
+                        </span>
+                        <div id="registerSpinner" class="spinner hidden"></div>
+                    </button>
+                </form>
+
+                <!-- Login Form -->
+                <form id="loginForm" class="space-y-5 hidden" onsubmit="handleLogin(event)">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Username</label>
+                        <div class="relative">
+                            <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                            <input type="text" id="loginUsername" required
+                                   class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-white placeholder-slate-500 outline-none text-sm"
+                                   placeholder="Enter your username">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Password</label>
+                        <div class="relative">
+                            <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                            <input type="password" id="loginPassword" required
+                                   class="glass-input w-full pl-10 pr-4 py-3 rounded-xl text-white placeholder-slate-500 outline-none text-sm"
+                                   placeholder="Your password">
+                        </div>
+                    </div>
+
+                    <!-- Webcam Section (Login) -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Face Verification</label>
+                        <div class="webcam-container bg-slate-900/80" id="webcamWrapperLogin">
+                            <video id="webcamLogin" autoplay playsinline muted class="w-full aspect-video object-cover"></video>
+                            <div class="scan-line" id="scanLineLogin"></div>
+                            <div class="corner-bracket tl"></div>
+                            <div class="corner-bracket tr"></div>
+                            <div class="corner-bracket bl"></div>
+                            <div class="corner-bracket br"></div>
+                        </div>
+                        <canvas id="captureCanvasLogin" class="hidden"></canvas>
+
+                        <div class="flex gap-3 mt-3">
+                            <button type="button" id="btnStartCamLogin"
+                                    class="btn-secondary flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+                                    onclick="startCameraLogin()">
+                                <i data-lucide="camera" class="w-4 h-4"></i> Start Camera
+                            </button>
+                            <button type="button" id="btnCaptureLogin"
+                                    class="btn-primary flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-40"
+                                    onclick="captureFrameLogin()" disabled>
+                                <i data-lucide="aperture" class="w-4 h-4"></i> Capture Face
+                            </button>
+                        </div>
+                        <p id="captureStatusLogin" class="text-xs text-slate-500 mt-2 text-center hidden">
+                            <i data-lucide="check-circle" class="w-3 h-3 inline text-emerald-400"></i>
+                            <span class="text-emerald-400">Face captured successfully</span>
+                        </p>
+                    </div>
+
+                    <button type="submit" id="btnLoginSubmit"
+                            class="btn-primary w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2" disabled>
+                        <span id="loginBtnText" class="flex items-center gap-2">
+                            <i data-lucide="log-in" class="w-4 h-4"></i> Authenticate
+                        </span>
+                        <div id="loginSpinner" class="spinner hidden"></div>
+                    </button>
+                </form>
+
+                <!-- Authenticated Dashboard (shown after login) -->
+                <div id="dashboard" class="hidden text-center space-y-4">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 mb-2">
+                        <i data-lucide="shield-check" class="w-8 h-8 text-emerald-400"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-white">Welcome, <span id="dashUsername" class="text-indigo-400"></span></h2>
+                    <p class="text-slate-400 text-sm">You are authenticated via Face ID + Password</p>
+                    <div class="glass-input rounded-xl p-4 text-left mt-4">
+                        <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">JWT Token</p>
+                        <p id="dashToken" class="text-xs text-slate-300 break-all font-mono leading-relaxed"></p>
+                    </div>
+                    <button onclick="handleLogout()"
+                            class="btn-secondary w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mt-4">
+                        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <p class="text-center text-slate-600 text-xs mt-6">
+                FaceID System &mdash; Spring Boot 3 + DJL FaceNet + JWT
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ── State ──
+        let capturedBlob = null;
+        let capturedBlobLogin = null;
+        let stream = null;
+        let streamLogin = null;
+
+        // ── Init Lucide icons ──
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // ── Tab Switching ──
+        function switchTab(tab) {
+            const regForm = document.getElementById('registerForm');
+            const loginForm = document.getElementById('loginForm');
+            const tabReg = document.getElementById('tabRegister');
+            const tabLog = document.getElementById('tabLogin');
+            const dashboard = document.getElementById('dashboard');
+
+            dashboard.classList.add('hidden');
+
+            if (tab === 'register') {
+                regForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+                tabReg.classList.add('active');
+                tabLog.classList.remove('active');
+            } else {
+                regForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                tabReg.classList.remove('active');
+                tabLog.classList.add('active');
+            }
+
+            stopAllCameras();
+            capturedBlob = null;
+            capturedBlobLogin = null;
+        }
+
+        // ── Camera: Register ──
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' }
+                });
+                const video = document.getElementById('webcam');
+                video.srcObject = stream;
+                document.getElementById('btnCapture').disabled = false;
+                document.getElementById('btnStartCam').innerHTML =
+                    '<i data-lucide="camera-off" class="w-4 h-4"></i> Restart';
+                lucide.createIcons();
+                showToast('Camera started', 'success');
+            } catch (err) {
+                showToast('Camera access denied. Please allow camera permissions.', 'error');
+            }
+        }
+
+        function captureFrame() {
+            const video = document.getElementById('webcam');
+            const canvas = document.getElementById('captureCanvas');
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, 640, 480);
+
+            canvas.toBlob((blob) => {
+                capturedBlob = blob;
+                document.getElementById('captureStatus').classList.remove('hidden');
+                document.getElementById('btnRegisterSubmit').disabled = false;
+                document.getElementById('webcamWrapper').classList.add('capture-ready');
+                setTimeout(() => document.getElementById('webcamWrapper').classList.remove('capture-ready'), 2000);
+                showToast('Face captured!', 'success');
+            }, 'image/jpeg', 0.92);
+        }
+
+        // ── Camera: Login ──
+        async function startCameraLogin() {
+            try {
+                streamLogin = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' }
+                });
+                const video = document.getElementById('webcamLogin');
+                video.srcObject = streamLogin;
+                document.getElementById('btnCaptureLogin').disabled = false;
+                document.getElementById('btnStartCamLogin').innerHTML =
+                    '<i data-lucide="camera-off" class="w-4 h-4"></i> Restart';
+                lucide.createIcons();
+                showToast('Camera started', 'success');
+            } catch (err) {
+                showToast('Camera access denied. Please allow camera permissions.', 'error');
+            }
+        }
+
+        function captureFrameLogin() {
+            const video = document.getElementById('webcamLogin');
+            const canvas = document.getElementById('captureCanvasLogin');
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, 640, 480);
+
+            canvas.toBlob((blob) => {
+                capturedBlobLogin = blob;
+                document.getElementById('captureStatusLogin').classList.remove('hidden');
+                document.getElementById('btnLoginSubmit').disabled = false;
+                document.getElementById('webcamWrapperLogin').classList.add('capture-ready');
+                setTimeout(() => document.getElementById('webcamWrapperLogin').classList.remove('capture-ready'), 2000);
+                showToast('Face captured!', 'success');
+            }, 'image/jpeg', 0.92);
+        }
+
+        function stopAllCameras() {
+            if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+            if (streamLogin) { streamLogin.getTracks().forEach(t => t.stop()); streamLogin = null; }
+        }
+
+        // ── Register ──
+        async function handleRegister(e) {
+            e.preventDefault();
+            if (!capturedBlob) { showToast('Please capture your face first.', 'error'); return; }
+
+            setLoading('register', true);
+
+            const formData = new FormData();
+            formData.append('username', document.getElementById('regUsername').value);
+            formData.append('email', document.getElementById('regEmail').value);
+            formData.append('password', document.getElementById('regPassword').value);
+            formData.append('faceImage', capturedBlob, 'face.jpg');
+
+            try {
+                const res = await fetch('/api/auth/register', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast(data.message || 'Registration successful!', 'success');
+                    localStorage.setItem('jwt', data.token);
+                    showDashboard(data.username, data.token);
+                } else {
+                    showToast(data.message || 'Registration failed.', 'error');
+                }
+            } catch (err) {
+                showToast('Network error. Is the server running?', 'error');
+            } finally {
+                setLoading('register', false);
+            }
+        }
+
+        // ── Login ──
+        async function handleLogin(e) {
+            e.preventDefault();
+            if (!capturedBlobLogin) { showToast('Please capture your face first.', 'error'); return; }
+
+            setLoading('login', true);
+
+            const formData = new FormData();
+            formData.append('username', document.getElementById('loginUsername').value);
+            formData.append('password', document.getElementById('loginPassword').value);
+            formData.append('faceImage', capturedBlobLogin, 'face.jpg');
+
+            try {
+                const res = await fetch('/api/auth/login', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast(data.message || 'Login successful!', 'success');
+                    localStorage.setItem('jwt', data.token);
+                    showDashboard(data.username, data.token);
+                } else {
+                    showToast(data.message || 'Authentication failed.', 'error');
+                }
+            } catch (err) {
+                showToast('Network error. Is the server running?', 'error');
+            } finally {
+                setLoading('login', false);
+            }
+        }
+
+        // ── Dashboard ──
+        function showDashboard(username, token) {
+            stopAllCameras();
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('dashUsername').textContent = username;
+            document.getElementById('dashToken').textContent = token;
+            document.getElementById('tabRegister').classList.remove('active');
+            document.getElementById('tabLogin').classList.remove('active');
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('jwt');
+            document.getElementById('dashboard').classList.add('hidden');
+            switchTab('login');
+            showToast('Logged out successfully.', 'success');
+        }
+
+        // ── Loading State ──
+        function setLoading(form, loading) {
+            const isReg = form === 'register';
+            const btn = document.getElementById(isReg ? 'btnRegisterSubmit' : 'btnLoginSubmit');
+            const text = document.getElementById(isReg ? 'registerBtnText' : 'loginBtnText');
+            const spinner = document.getElementById(isReg ? 'registerSpinner' : 'loginSpinner');
+
+            btn.disabled = loading;
+            text.classList.toggle('hidden', loading);
+            spinner.classList.toggle('hidden', !loading);
+        }
+
+        // ── Toast Notifications ──
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+
+            const colors = {
+                success: 'border-emerald-500/50 bg-emerald-500/10',
+                error: 'border-red-500/50 bg-red-500/10'
+            };
+            const icons = {
+                success: 'check-circle',
+                error: 'alert-circle'
+            };
+            const iconColors = {
+                success: 'text-emerald-400',
+                error: 'text-red-400'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto flex items-center gap-3 px-5 py-3 rounded-xl border ${colors[type]}
+                               backdrop-blur-xl shadow-lg toast-enter max-w-sm`;
+            toast.innerHTML = `
+                <i data-lucide="${icons[type]}" class="w-5 h-5 ${iconColors[type]} flex-shrink-0"></i>
+                <span class="text-sm text-slate-200">${message}</span>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

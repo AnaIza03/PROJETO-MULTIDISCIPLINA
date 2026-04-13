@@ -1,0 +1,35 @@
+server:
+  port: 8080
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/faceid_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: naruhina
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+jwt:
+  secret: ${JWT_SECRET:YTJiM2M0ZDVlNmY3ZzhpOWowazFsMm0zbjRvNXA2cTdyOHM5dDB1MXYyd3gzeTV6NmE3YjhjOWQwZTFmMmczaDRpNWo2azdsOG05bjBvMXAycTNyNHM1dDZ1N3Y4dzl4MHkxejJhM2I0YzVkNg==}
+  expiration-ms: 86400000
+
+faceid:
+  model-path: models/face_feature.pt
+  similarity-threshold: 0.85
+  embedding-dimensions: 512
+
+logging:
+  level:
+    com.faceid: INFO
+    ai.djl: INFO
