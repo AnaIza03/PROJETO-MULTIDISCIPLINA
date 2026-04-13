@@ -122,6 +122,7 @@ $$\text{similarity} = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathb
 [ ] Implementação de Liveness Detection (prova de vida).
 
 [ ] Suporte a múltiplos rostos por usuário.
+
 -----
 
 **Desenvolvido por Ana Izabelle.**
