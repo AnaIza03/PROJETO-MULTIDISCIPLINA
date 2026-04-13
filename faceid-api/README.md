@@ -1,107 +1,130 @@
-# FaceID API
+Aqui está o conteúdo do seu **README.md** com uma estrutura profissional, utilizando ícones, tabelas e os espaços reservados para as suas capturas de tela e configurações.
 
-Enterprise-grade biometric authentication API built with **Java 17**, **Spring Boot 3**, and **Deep Java Library (DJL)** with a FaceNet PyTorch model.
+Basta copiar o código abaixo e colar no seu arquivo:
 
-## Architecture
+-----
 
-- **Back-end**: Spring Boot 3.3.5, Spring Security 6 (JWT + BCrypt), Spring Data JPA (MySQL)
-- **AI Engine**: DJL with PyTorch engine loading a TorchScript FaceNet model (512-dim embeddings)
-- **Front-end**: Single-page HTML with Tailwind CSS, Glassmorphism dark UI, Lucide icons, webcam capture
+# 🛡️ FaceID API: Autenticação Biométrica Enterprise
 
-## Prerequisites
+API de autenticação biométrica de alto nível desenvolvida para o projeto multidisciplinar. O sistema utiliza **Inteligência Artificial nativa** (sem APIs externas pagas) para realizar o reconhecimento facial através de vetores matemáticos (embeddings).
 
-- **Java 17+**
-- **Maven 3.8+**
-- **MySQL 8+** running on `localhost:3306`
-- **Python 3.8+** with `torch` and `facenet-pytorch` (for model export only)
+-----
 
-## 1. Export the FaceNet Model
+## 📸 Demonstração do Sistema
 
-Before running the API, you need to generate the TorchScript model file.
+> **[IMAGEM 1: ]**
+
+-----
+
+## 🛠️ Tecnologias Utilizadas
+
+### **Backend & Segurança**
+
+  * **Java 17** & **Spring Boot 3.3.5**
+  * **Spring Security 6** (Proteção de rotas)
+  * **JWT (JSON Web Token)** para persistência de sessão
+  * **BCrypt** para criptografia de senhas no banco
+
+### **Inteligência Artificial**
+
+  * **DJL (Deep Java Library)**: Engine para rodar modelos de IA em Java.
+  * **FaceNet (PyTorch)**: Modelo pré-treinado para extração de 512 características faciais.
+  * **Cosine Similarity**: Algoritmo matemático para comparação de faces.
+
+### **Banco de Dados**
+
+  * **MySQL 9.0**: Armazenamento persistente de credenciais e vetores biométricos.
+
+-----
+
+## ⚙️ Configuração do Ambiente
+
+### **1. Banco de Dados & Conexão**
+
+Abaixo está a configuração utilizada no arquivo `src/main/resources/application.yml`:
+
+```yaml
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/faceid_db?createDatabaseIfNotExist=true
+    username: root
+    password: ${DB_PASSWORD:SUA_SENHA_PARATESTAR} 
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+```
+
+### **2. Estrutura da Tabela**
+
+O sistema utiliza uma tabela otimizada para armazenar os dados binários da face (BLOB).
+
+> **[IMAGEM 2: ]**
+ 
+-----
+
+## 🚀 Como Executar o Projeto
+
+### **Passo 1: Gerar o Modelo de IA**
+
+Certifique-se de ter o Python instalado e execute o script de exportação:
 
 ```bash
 pip install facenet-pytorch torch
 python export_model.py
 ```
 
-This creates `models/face_feature.pt`.
+### **Passo 2: Compilar e Rodar a API**
 
-## 2. Database Setup
-
-Create the MySQL database (the app auto-creates tables via JPA):
-
-```sql
-CREATE DATABASE IF NOT EXISTS faceid_db;
-```
-
-## 3. Configuration
-
-Set environment variables or edit `src/main/resources/application.yml`:
-
-| Variable       | Default | Description                     |
-|----------------|---------|---------------------------------|
-| `DB_PASSWORD`  | `root`  | MySQL root password             |
-| `JWT_SECRET`   | (built-in) | Base64-encoded 512-bit key   |
-
-## 4. Build & Run
+No terminal do seu projeto:
 
 ```bash
-cd faceid-api
-mvn clean package -DskipTests
-java -jar target/faceid-api-1.0.0.jar
-```
-
-Or with Maven directly:
-
-```bash
+mvn clean install -DskipTests
 mvn spring-boot:run
 ```
 
-The app starts at **http://localhost:8080**.
+O sistema estará disponível em: `http://localhost:8080`
 
-## API Endpoints
+-----
 
-| Method | Endpoint              | Auth     | Description                                      |
-|--------|-----------------------|----------|--------------------------------------------------|
-| POST   | `/api/auth/register`  | Public   | Register with username, email, password, faceImage |
-| POST   | `/api/auth/login`     | Public   | Login with username, password, faceImage (cosine > 0.85) |
-| POST   | `/api/face/verify`    | JWT      | Verify face against stored embedding             |
+## 🧠 Como a Biometria Funciona?
 
-All endpoints accepting images use `multipart/form-data`.
+1.  **Captura**: A imagem da webcam é enviada para a API em formato Base64/Multipart.
+2.  **Extração**: O modelo FaceNet processa a imagem e gera um vetor matemático único de 512 dimensões.
+3.  **Comparação**: No login, o sistema compara o vetor "ao vivo" com o vetor guardado no banco usando a **Similaridade de Cosseno**:
 
-## How It Works
+$$\text{similarity} = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$
 
-1. **Registration**: User uploads a face photo. The DJL FaceNet model extracts a 512-dimensional embedding vector. The vector is stored as a BLOB in MySQL alongside the BCrypt-hashed password.
+  * **Resultado \> 0.85**: Acesso Permitido ✅
+  * **Resultado \< 0.85**: Acesso Negado ❌
 
-2. **Login**: User provides credentials + a live face photo. The API verifies the password, extracts a live embedding, and computes **Cosine Similarity** against the stored vector. Login is granted only if similarity >= 0.85.
+-----
 
-3. **JWT**: On successful login, a signed JWT token is issued (24h expiry). Protected endpoints require `Authorization: Bearer <token>`.
+## 📌 API Endpoints
 
-## Project Structure
+| Método | Endpoint | Descrição |
+| :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Cadastra novo usuário com foto. |
+| `POST` | `/api/auth/login` | Autenticação facial e geração de JWT. |
+| `GET` | `/api/users/profile` | Retorna dados do usuário autenticado. |
 
-```
-faceid-api/
-  src/main/java/com/faceid/
-    config/          - DJL model config, Security config
-    controller/      - REST controllers (Auth, Face)
-    dto/             - Java 17 Records (request/response)
-    entity/          - JPA entities
-    exception/       - Global exception handler
-    repository/      - Spring Data repositories
-    security/        - JWT service and filter
-    service/         - Business logic (embedding, similarity, auth)
-  src/main/resources/
-    application.yml  - App configuration
-    static/
-      index.html     - Full front-end SPA
-  models/
-    face_feature.pt  - TorchScript FaceNet model (user-generated)
-```
 
-## Tech Stack
+## 🛠️ Roadmap de Desenvolvimento
 
-- Java 17, Spring Boot 3.3.5, Spring Security 6
-- DJL 0.31.1 + PyTorch Engine
-- MySQL 8 + Hibernate/JPA
-- JJWT 0.12.6
-- Tailwind CSS, Lucide Icons, Vanilla JS
+[x] Extração de Embeddings com FaceNet.
+
+[x] Persistência de vetores em MySQL.
+
+[x] Autenticação via JWT.
+
+[ ] Implementação de Liveness Detection (prova de vida).
+
+[ ] Suporte a múltiplos rostos por usuário.
+-----
+
+**Desenvolvido por Ana Izabelle.**
+*Projeto Acadêmico Multidisciplinar - 2026*
